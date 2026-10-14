@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exhibit Stamper</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --ink: #1d2330;
+    --muted: #5b6474;
+    --line: #d9dde5;
+    --accent: #1f4e8c;
+    --accent-ink: #ffffff;
+    --warn: #8a5a00;
+    --stage: #8d939e;
+    --row-hover: #f1f3f7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161a22;
+      --panel: #1f2530;
+      --ink: #e8ecf3;
+      --muted: #9aa3b2;
+      --line: #343c4b;
+      --accent: #5b8fd6;
+      --accent-ink: #0d1320;
+      --warn: #e8b24a;
+      --stage: #3a414e;
+      --row-hover: #262d3a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161a22;
+    --panel: #1f2530;
+    --ink: #e8ecf3;
+    --muted: #9aa3b2;
+    --line: #343c4b;
+    --accent: #5b8fd6;
+    --accent-ink: #0d1320;
+    --warn: #e8b24a;
+    --stage: #3a414e;
+    --row-hover: #262d3a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.45 Arial, Helvetica, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 700; }
+  header .spacer { flex: 1; }
+  .btn {
+    font: inherit;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.sm { padding: 5px 10px; }
+
+  main {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) 1fr;
+    gap: 16px;
+    padding: 16px 20px 24px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; padding: 12px 16px 20px; }
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  #sidebar.over { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31,78,140,.25); }
+
+  #fileList { list-style: none; margin: 0; padding: 0; max-height: 52vh; overflow: auto; }
+  #fileList li {
+    padding: 8px 8px 10px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 8px;
+    align-items: center;
+  }
+  #fileList li:hover { background: var(--row-hover); }
+  #fileList li.active { background: var(--accent); color: var(--accent-ink); }
+  #fileList .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+  #fileList .name { grid-column: 1; grid-row: 1; }
+  #fileList .remove { grid-column: 2; grid-row: 1; }
+  #fileList input.label-input { grid-column: 1 / -1; grid-row: 2; }
+  #fileList input.label-input {
+    font: inherit;
+    font-size: 14px;
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--ink);
+  }
+  #fileList input.label-input.missing { border-color: var(--warn); }
+  #fileList input.label-input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+  #fileList .remove {
+    font: inherit;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+    opacity: .7;
+  }
+  #fileList .remove:hover { opacity: 1; background: rgba(128,128,128,.2); }
+  #fileList li.active .remove { color: var(--accent-ink); }
+
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 2px; margin: 4px 0 0; }
+
+  .dropzone {
+    margin-top: 12px;
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  #sidebar.over .dropzone { border-color: var(--accent); color: var(--ink); }
+  .exhibit-hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+
+  .stage-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .stage-bar .title { font-weight: 700; word-break: break-all; }
+  .stage-bar .spacer { flex: 1; }
+  #stage {
+    background: var(--stage);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 420px;
+    overflow: auto;
+  }
+  #stage canvas {
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,.35);
+    max-width: 100%;
+    height: auto;
+  }
+  #stageMsg { color: #fff; padding: 40px 10px; text-align: center; }
+
+  .controls {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px 24px;
+    align-items: center;
+  }
+  @media (max-width: 560px) { .controls { grid-template-columns: 1fr; } }
+  .pad {
+    display: grid;
+    grid-template-columns: repeat(3, 52px);
+    grid-template-rows: repeat(3, 40px);
+    gap: 6px;
+  }
+  .pad .btn { padding: 0; font-size: 18px; }
+  .pad .mid { font-size: 13px; }
+  .steps { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+  .steps label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .readout { color: var(--muted); font-size: 14px; margin-top: 8px; }
+  .readout strong { color: var(--ink); }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+  .save-opts { margin-top: 14px; display: grid; gap: 8px; }
+  .save-row { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .save-row select, .save-row input {
+    flex: 1; font: inherit; font-size: 14px; padding: 5px 6px;
+    border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink);
+  }
+  .apply-row { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+  #log {
+    margin-top: 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+    max-height: 180px;
+    overflow: auto;
+    white-space: pre-wrap;
+    color: var(--muted);
+    display: none;
+  }
+  #log.show { display: block; }
+  #log .warn { color: var(--warn); }
+  .privacy { color: var(--muted); font-size: 13px; margin-top: 14px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Exhibit Stamper</h1>
+  <span class="spacer"></span>
+  <button class="btn" id="chooseFolder">Choose folder</button>
+  <button class="btn" id="chooseFiles">Choose PDF files</button>
+  <input type="file" id="folderInput" class="sr-only" webkitdirectory directory multiple accept="application/pdf,.pdf">
+  <input type="file" id="filesInput" class="sr-only" multiple accept="application/pdf,.pdf">
+</header>
+
+<main>
+  <section class="card" id="sidebar">
+    <h2>Exhibit files</h2>
+    <ul id="fileList"></ul>
+    <p class="empty" id="emptyMsg">No exhibit PDFs loaded yet.</p>
+    <div class="dropzone" id="dropzone">Drag PDFs into this box, or use the buttons above.</div>
+    <p class="exhibit-hint">Type each exhibit name in its box. Short names like A or 12 get "Exhibit" added in front. Longer names are used exactly as typed, such as "Ex 1 - Complaint page". The page number is added after a dash.</p>
+    <div class="save-opts">
+      <label class="save-row">Save as
+        <select id="outMode">
+          <option value="zip">One zip file</option>
+          <option value="folder">Separate PDFs in a new folder</option>
+        </select>
+      </label>
+      <label class="save-row">Name
+        <input type="text" id="outName" value="Stamped Exhibits" maxlength="80">
+      </label>
+      <p class="exhibit-hint">Your original PDFs are never changed. Stamped copies always go to a new file or folder, and an existing name is never overwritten. Saving to a folder needs Chrome or Edge.</p>
+    </div>
+    <div class="apply-row">
+      <button class="btn primary" id="applyBtn" disabled>Stamp all exhibits</button>
+    </div>
+    <div id="log" role="status" aria-live="polite"></div>
+    <p class="privacy">Files are processed on this computer. Nothing is uploaded.</p>
+  </section>
+
+  <section class="card">
+    <div class="stage-bar">
+      <span class="title" id="docTitle">Preview</span>
+      <span class="spacer"></span>
+      <button class="btn sm" id="prevPage" disabled>&larr; Prev</button>
+      <span id="pageInfo">&nbsp;</span>
+      <button class="btn sm" id="nextPage" disabled>Next &rarr;</button>
+    </div>
+
+    <div id="stage">
+      <div id="stageMsg">Add exhibit PDFs to see a preview with the footer.</div>
+    </div>
+
+    <div class="controls">
+      <div class="pad" aria-label="Move footer">
+        <span></span>
+        <button class="btn" id="up" title="Move up (Up arrow)">&uarr;</button>
+        <span></span>
+        <button class="btn" id="left" title="Move left (Left arrow)">&larr;</button>
+        <button class="btn mid" id="center" title="Reset to centered">Center</button>
+        <button class="btn" id="right" title="Move right (Right arrow)">&rarr;</button>
+        <span></span>
+        <button class="btn" id="down" title="Move down (Down arrow)">&darr;</button>
+        <span></span>
+      </div>
+      <div>
+        <div class="steps" role="radiogroup" aria-label="Move by">
+          <span>Move by:</span>
+          <label><input type="radio" name="step" value="0.5"> 0.5 pt</label>
+          <label><input type="radio" name="step" value="1" checked> 1 pt</label>
+          <label><input type="radio" name="step" value="5"> 5 pt</label>
+        </div>
+        <div class="readout" id="readout"></div>
+        <div class="hint">Arrow keys also move the footer. Your position is remembered on this computer.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---- Footer settings -----------------------------------------------------
+  const FONT_PT = 8;             // Arial 8 point
+  const BASE_MARGIN_PT = 36;     // 0.5 inch from bottom edge to baseline
+  const STORE_KEY = "exhibitStamper.position";
+
+  if (window.pdfjsLib) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+
+  // ---- State ---------------------------------------------------------------
+  const state = {
+    files: [],          // {file, name, label}  label is the exhibit name, e.g. "A" or "12"
+    selected: -1,
+    pageNo: 1,
+    pageCount: 0,
+    pdfDoc: null,
+    dx: 0,
+    dy: 0,
+    step: 1,
+    renderId: 0,
+    loadId: 0,
+  };
+
+  // ---- Elements ------------------------------------------------------------
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    sidebar: $("sidebar"), fileList: $("fileList"), emptyMsg: $("emptyMsg"),
+    dropzone: $("dropzone"), folderInput: $("folderInput"), filesInput: $("filesInput"),
+    chooseFolder: $("chooseFolder"), chooseFiles: $("chooseFiles"),
+    applyBtn: $("applyBtn"), log: $("log"), stage: $("stage"),
+    outMode: $("outMode"), outName: $("outName"),
+    docTitle: $("docTitle"), pageInfo: $("pageInfo"),
+    prevPage: $("prevPage"), nextPage: $("nextPage"),
+    readout: $("readout"), stageMsg: $("stageMsg"),
+  };
+
+  // ---- Helpers -------------------------------------------------------------
+  // Starting name taken from a file name, e.g. "Exhibit 12 - Medical.pdf" -> "Exhibit 12"
+  function guessLabel(name) {
+    const m = name.match(/\bexhibit[\s_-]+([A-Za-z]{1,2}|\d{1,3})(?![A-Za-z0-9])/i);
+    return m ? m[0].replace(/[\s_-]+/g, " ") : "";
+  }
+
+  // The text that appears before the page number in the footer.
+  // A short name such as "A", "b" or "12" gets "Exhibit " in front (so "b" reads "Exhibit B").
+  // Anything longer is used exactly as typed, so "Exhibit B" or "Ex 1 - Complaint page" stay as written.
+  function displayName(raw) {
+    const text = raw.trim();
+    if (!text) return "Exhibit ?";   // preview only: files with no name are never saved
+    if (/^([A-Za-z]{1,3}|\d{1,3})$/.test(text)) return "Exhibit " + text.toUpperCase();
+    return text;
+  }
+
+  function footerText(raw, pageNo) {
+    return `${displayName(raw)}-${pageNo}`;
+  }
+
+  function loadPosition() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+      state.dx = Number(saved.dx) || 0;
+      state.dy = Number(saved.dy) || 0;
+    } catch (e) { /* storage blocked: start centered */ }
+  }
+
+  function savePosition() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({ dx: state.dx, dy: state.dy }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function setLog(line) {
+    els.log.classList.add("show");
+    els.log.textContent = line;
+  }
+
+  function appendLog(line, isWarn) {
+    els.log.classList.add("show");
+    const div = document.createElement("div");
+    div.textContent = line;
+    if (isWarn) div.className = "warn";
+    els.log.appendChild(div);
+    els.log.scrollTop = els.log.scrollHeight;
+  }
+
+  function updateReadout() {
+    const sign = (n) => (n >= 0 ? "+" : "") + n.toFixed(1);
+    els.readout.innerHTML =
+      `Offset from center: <strong>${sign(state.dx)} pt across, ${sign(state.dy)} pt up</strong> ` +
+      `(default: centered, 0.5 in from bottom)`;
+  }
+
+  function updateApplyButton() {
+    els.applyBtn.disabled = state.files.length === 0;
+  }
+
+  // ---- Adding and removing files ------------------------------------------
+  function addFiles(fileList) {
+    const pdfs = Array.from(fileList).filter((f) => /\.pdf$/i.test(f.name));
+    if (!pdfs.length) {
+      appendLog("No PDF files were found in that selection.", true);
+      return;
+    }
+    const existing = new Set(state.files.map((f) => f.name));
+    pdfs.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    let added = 0;
+    pdfs.forEach((f) => {
+      if (existing.has(f.name)) return;
+      state.files.push({ file: f, name: f.name, label: guessLabel(f.name) });
+      added++;
+    });
+    if (added === 0) appendLog("Those files are already in the list.");
+    renderList();
+    updateApplyButton();
+    if (state.selected < 0 && state.files.length) selectFile(0);
+  }
+
+  function removeFile(index) {
+    const wasSelected = index === state.selected;
+    state.files.splice(index, 1);
+    if (state.files.length === 0) {
+      state.selected = -1;
+      state.pdfDoc = null;
+      state.pageCount = 0;
+      clearCanvas();
+      els.docTitle.textContent = "Preview";
+      els.stageMsg.textContent = "Add exhibit PDFs to see a preview with the footer.";
+      els.stageMsg.style.display = "block";
+      updatePager();
+    } else if (wasSelected) {
+      selectFile(Math.min(index, state.files.length - 1));
+      renderList();
+      return;
+    } else if (index < state.selected) {
+      state.selected--;
+    }
+    renderList();
+    updateApplyButton();
+  }
+
+  // ---- The file list -------------------------------------------------------
+  function renderList() {
+    els.fileList.innerHTML = "";
+    els.emptyMsg.style.display = state.files.length ? "none" : "block";
+    state.files.forEach((item, i) => {
+      const li = document.createElement("li");
+      li.dataset.index = i;
+
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = item.name;
+      name.title = item.name;
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "label-input" + (item.label.trim() ? "" : " missing");
+      input.value = item.label;
+      input.maxLength = 60;
+      input.placeholder = "e.g. A, 12, or Ex 1 - Complaint page";
+      input.setAttribute("aria-label", `Exhibit name for ${item.name}`);
+      // Typing in the box should not reselect or rebuild the list.
+      ["click", "mousedown", "keydown"].forEach((type) =>
+        input.addEventListener(type, (e) => e.stopPropagation())
+      );
+      input.addEventListener("input", () => {
+        // Keep exactly what is typed; only the footer preview and the stamp use it.
+        item.label = input.value;
+        input.classList.toggle("missing", !input.value.trim());
+        clearTimeout(input._previewTimer);
+        input._previewTimer = setTimeout(() => {
+          if (state.files.indexOf(item) === state.selected) renderPage();
+        }, 150);
+      });
+
+      const remove = document.createElement("button");
+      remove.className = "remove";
+      remove.type = "button";
+      remove.title = "Remove from list";
+      remove.setAttribute("aria-label", `Remove ${item.name}`);
+      remove.textContent = "×";
+      remove.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeFile(state.files.indexOf(item));
+      });
+
+      li.append(name, input, remove);
+      li.addEventListener("click", () => selectFile(state.files.indexOf(item)));
+      els.fileList.appendChild(li);
+    });
+    markActive();
+  }
+
+  function markActive() {
+    els.fileList.querySelectorAll("li").forEach((li) => {
+      li.classList.toggle("active", Number(li.dataset.index) === state.selected);
+    });
+  }
+
+  // ---- Preview -------------------------------------------------------------
+  async function selectFile(index) {
+    state.selected = index;
+    state.pageNo = 1;
+    markActive();
+    const item = state.files[index];
+    if (!item) return;
+    const loadId = ++state.loadId;
+    els.docTitle.textContent = item.name;
+    els.stageMsg.textContent = "Loading preview...";
+    els.stageMsg.style.display = "block";
+    clearCanvas();
+    try {
+      const buf = await item.file.arrayBuffer();
+      const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+      if (loadId !== state.loadId) return; // user picked another file meanwhile
+      state.pdfDoc = doc;
+      state.pageCount = doc.numPages;
+      await renderPage();
+    } catch (err) {
+      state.pdfDoc = null;
+      state.pageCount = 0;
+      clearCanvas();
+      els.stageMsg.textContent = "This PDF could not be opened: " + (err.message || err);
+      els.stageMsg.style.display = "block";
+      appendLog(`Could not preview ${item.name}: ${err.message || err}`, true);
+      updatePager();
+    }
+  }
+
+  function clearCanvas() {
+    els.stage.querySelectorAll("canvas").forEach((c) => c.remove());
+  }
+
+  async function renderPage() {
+    if (!state.pdfDoc) return;
+    const id = ++state.renderId;
+    const page = await state.pdfDoc.getPage(state.pageNo);
+    if (id !== state.renderId) return;
+
+    const base = page.getViewport({ scale: 1 });
+    const cssWidth = Math.max(240, els.stage.clientWidth - 40);
+    const dpr = window.devicePixelRatio || 1;
+    const cssScale = cssWidth / base.width;
+    const viewport = page.getViewport({ scale: cssScale * dpr });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    canvas.style.width = Math.floor(viewport.width / dpr) + "px";
+    canvas.style.height = Math.floor(viewport.height / dpr) + "px";
+    const ctx = canvas.getContext("2d");
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    if (id !== state.renderId) return;
+
+    // Draw the footer on top, at the same spot the saved file will use.
+    const label = state.files[state.selected].label;
+    const scale = viewport.scale;                     // pixels per point
+    const x = (base.width / 2 + state.dx) * scale;
+    const y = (base.height - (BASE_MARGIN_PT + state.dy)) * scale;
+    ctx.save();
+    ctx.fillStyle = "#000";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = `${FONT_PT * scale}px Arial, Helvetica, sans-serif`;
+    ctx.fillText(footerText(label, state.pageNo), x, y);
+    ctx.restore();
+
+    clearCanvas();
+    els.stage.appendChild(canvas);
+    els.stageMsg.style.display = "none";
+    updatePager();
+    updateReadout();
+  }
+
+  function updatePager() {
+    const hasDoc = state.pageCount > 0;
+    els.pageInfo.textContent = hasDoc ? `Page ${state.pageNo} of ${state.pageCount}` : " ";
+    els.prevPage.disabled = !hasDoc || state.pageNo <= 1;
+    els.nextPage.disabled = !hasDoc || state.pageNo >= state.pageCount;
+  }
+
+  function changePage(delta) {
+    const next = state.pageNo + delta;
+    if (next < 1 || next > state.pageCount) return;
+    state.pageNo = next;
+    renderPage();
+  }
+
+  // ---- Positioning ---------------------------------------------------------
+  function nudge(ax, ay) {
+    state.dx += ax * state.step;
+    state.dy += ay * state.step;
+    savePosition();
+    renderPage();
+  }
+
+  function resetPosition() {
+    state.dx = 0;
+    state.dy = 0;
+    savePosition();
+    renderPage();
+  }
+
+  // ---- Stamping ------------------------------------------------------------
+  // ---- Saving ----------------------------------------------------------------
+  // Originals are only read into memory. Output always goes to a new file or folder,
+  // and an existing name is never overwritten: "Name (2).pdf", "Name (3).pdf", and so on.
+  const SAVE_KEY = "exhibitStamper.save";
+
+  function loadSaveOptions() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
+      if (saved.mode === "zip" || saved.mode === "folder") els.outMode.value = saved.mode;
+      if (typeof saved.name === "string" && saved.name.trim()) els.outName.value = saved.name;
+    } catch (e) { /* storage blocked: use defaults */ }
+  }
+
+  function saveSaveOptions() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ mode: els.outMode.value, name: els.outName.value }));
+    } catch (e) { /* ignore */ }
+  }
+
+  // Removes characters that are not allowed in file names.
+  function cleanName(text, fallback) {
+    const cleaned = (text || "").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+    return cleaned || fallback;
+  }
+
+  async function entryExists(dir, name, kind) {
+    try {
+      if (kind === "folder") await dir.getDirectoryHandle(name);
+      else await dir.getFileHandle(name);
+      return true;
+    } catch (e) {
+      return e.name !== "NotFoundError";
+    }
+  }
+
+  // "Exhibit A.pdf" -> "Exhibit A (2).pdf" if that name is already taken
+  async function freeName(dir, fileName, kind) {
+    const dot = kind === "file" ? fileName.lastIndexOf(".") : -1;
+    const base = dot > 0 ? fileName.slice(0, dot) : fileName;
+    const ext = dot > 0 ? fileName.slice(dot) : "";
+    let candidate = fileName;
+    for (let n = 2; await entryExists(dir, candidate, kind); n++) {
+      candidate = `${base} (${n})${ext}`;
+    }
+    return candidate;
+  }
+
+  // Stamps every named exhibit. Returns [{name, bytes}]. Originals are not changed.
+  async function buildStampedCopies() {
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const outputs = [];
+    for (const item of state.files) {
+      if (!item.label.trim()) continue;
+      try {
+        const bytes = await item.file.arrayBuffer();
+        const doc = await PDFDocument.load(bytes, { ignoreEncryption: false });
+        const font = await doc.embedFont(StandardFonts.Helvetica);
+        const pages = doc.getPages();
+        pages.forEach((page, i) => {
+          const box = page.getCropBox();
+          const text = footerText(item.label, i + 1);
+          const width = font.widthOfTextAtSize(text, FONT_PT);
+          page.drawText(text, {
+            x: box.x + (box.width - width) / 2 + state.dx,
+            y: box.y + BASE_MARGIN_PT + state.dy,
+            size: FONT_PT,
+            font,
+            color: rgb(0, 0, 0),
+          });
+        });
+        outputs.push({ name: item.name, bytes: await doc.save() });
+        const shown = displayName(item.label);
+        appendLog(`Stamped ${item.name}: ${shown}-1 to ${shown}-${pages.length}`);
+      } catch (err) {
+        appendLog(`Error on ${item.name}: ${err.message || err}`, true);
+      }
+    }
+    return outputs;
+  }
+
+  async function stampAll() {
+    if (!state.files.length) return;
+    const missing = state.files.filter((f) => !f.label.trim()).map((f) => f.name);
+    const mode = els.outMode.value;
+    const baseName = cleanName(els.outName.value, "Stamped Exhibits");
+    saveSaveOptions();
+
+    // Ask where to save first, while the click is still fresh for the browser.
+    let zipHandle = null;
+    let parentDir = null;
+    try {
+      if (mode === "zip" && window.showSaveFilePicker) {
+        zipHandle = await showSaveFilePicker({
+          suggestedName: baseName + ".zip",
+          types: [{ description: "Zip archive", accept: { "application/zip": [".zip"] } }],
+        });
+      } else if (mode === "folder") {
+        if (!window.showDirectoryPicker) {
+          setLog("Saving to a folder needs Chrome or Edge. Choose “One zip file” instead.");
+          return;
+        }
+        parentDir = await showDirectoryPicker({ mode: "readwrite" });
+      }
+    } catch (err) {
+      if (err.name === "AbortError") {
+        setLog("Save cancelled. Nothing was saved, and the original PDFs were not changed.");
+        return;
+      }
+      setLog(`Could not open the save dialog: ${err.message || err}`);
+      return;
+    }
+
+    els.applyBtn.disabled = true;
+    setLog(`Stamping at ${state.dx.toFixed(1)} pt across, ${state.dy.toFixed(1)} pt up...`);
+    if (missing.length) {
+      appendLog(`Skipping ${missing.length} file(s) with no exhibit name: ${missing.join(", ")}`, true);
+    }
+
+    try {
+      const outputs = await buildStampedCopies();
+      if (!outputs.length) {
+        appendLog("Nothing was stamped. Give each file an exhibit name first.", true);
+        return;
+      }
+
+      if (mode === "folder") {
+        const folderName = await freeName(parentDir, baseName, "folder");
+        const target = await parentDir.getDirectoryHandle(folderName, { create: true });
+        for (const o of outputs) {
+          const fileName = await freeName(target, o.name, "file");
+          const fh = await target.getFileHandle(fileName, { create: true });
+          const w = await fh.createWritable();
+          await w.write(o.bytes);
+          await w.close();
+        }
+        appendLog(`Saved ${outputs.length} PDF(s) in the new folder "${folderName}" inside "${parentDir.name}".`);
+      } else {
+        const zip = new JSZip();
+        outputs.forEach((o) => zip.file(o.name, o.bytes));
+        const blob = await zip.generateAsync({ type: "blob" });
+        if (zipHandle) {
+          const w = await zipHandle.createWritable();
+          await w.write(blob);
+          await w.close();
+          appendLog(`Saved ${zipHandle.name} with ${outputs.length} stamped PDF(s).`);
+        } else {
+          // Browsers without a save dialog download to their usual downloads folder.
+          const fileName = baseName + ".zip";
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 4000);
+          appendLog(`Downloaded ${fileName} with ${outputs.length} stamped PDF(s).`);
+        }
+      }
+      appendLog("The original PDFs were not changed.");
+    } catch (err) {
+      appendLog(`Save failed: ${err.message || err}`, true);
+    } finally {
+      updateApplyButton();
+    }
+  }
+
+  // ---- Events --------------------------------------------------------------
+  els.chooseFolder.addEventListener("click", () => els.folderInput.click());
+  els.chooseFiles.addEventListener("click", () => els.filesInput.click());
+  els.folderInput.addEventListener("change", (e) => { addFiles(e.target.files); e.target.value = ""; });
+  els.filesInput.addEventListener("change", (e) => { addFiles(e.target.files); e.target.value = ""; });
+  els.applyBtn.addEventListener("click", stampAll);
+  els.prevPage.addEventListener("click", () => changePage(-1));
+  els.nextPage.addEventListener("click", () => changePage(1));
+
+  $("up").addEventListener("click", () => nudge(0, 1));
+  $("down").addEventListener("click", () => nudge(0, -1));
+  $("left").addEventListener("click", () => nudge(-1, 0));
+  $("right").addEventListener("click", () => nudge(1, 0));
+  $("center").addEventListener("click", resetPosition);
+
+  document.querySelectorAll('input[name="step"]').forEach((radio) => {
+    radio.addEventListener("change", () => { state.step = Number(radio.value); });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    const map = { ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+    if (map[e.key]) {
+      e.preventDefault();
+      nudge(...map[e.key]);
+    }
+  });
+
+  // Drag and drop goes into the exhibit list box only.
+  // Drops anywhere else are ignored, so the browser never opens a PDF in its own tab.
+  document.addEventListener("dragover", (e) => e.preventDefault());
+  document.addEventListener("drop", (e) => e.preventDefault());
+
+  els.sidebar.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    els.sidebar.classList.add("over");
+  });
+  els.sidebar.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    els.sidebar.classList.add("over");
+  });
+  els.sidebar.addEventListener("dragleave", (e) => {
+    if (!els.sidebar.contains(e.relatedTarget)) els.sidebar.classList.remove("over");
+  });
+  els.sidebar.addEventListener("drop", (e) => {
+    e.preventDefault();
+    els.sidebar.classList.remove("over");
+    if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+
+  // Keep the preview sized to the window
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (state.pdfDoc) renderPage(); }, 150);
+  });
+
+  // ---- Start ---------------------------------------------------------------
+  loadPosition();
+  loadSaveOptions();
+  updateReadout();
+  updatePager();
+  updateApplyButton();
+  if (!window.pdfjsLib || !window.PDFLib || !window.JSZip) {
+    els.stageMsg.textContent =
+      "The page could not load its helper libraries. Check the internet connection and reload.";
+  }
+})();
+</script>
+</body>
+</html>
