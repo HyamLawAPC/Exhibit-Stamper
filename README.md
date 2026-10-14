@@ -9,4 +9,5 @@ How to use it:
 4.      Click a file to preview it. Use the arrow buttons or keyboard arrow keys to move the footer up, down, left, or right until it sits where you want. The “Move by” setting controls how far each press moves it.
 5.      Under “Save as,” choose “One zip file” or “Separate PDFs in a new folder,” and give the output a name.
 6.      Click “Stamp all exhibits” and pick where to save. Your original PDFs are never changed, and an existing file or folder is never overwritten.
-      The output is saved in Downloads. I’ve attached a pdf of the output; the Bates is at the bottom on the right 1/3 of the page.
+
+ The output is saved in Downloads. I’ve attached a pdf of the output; the Bates is at the bottom on the right 1/3 of the page.
